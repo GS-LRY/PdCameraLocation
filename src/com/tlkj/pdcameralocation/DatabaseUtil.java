@@ -144,4 +144,52 @@ public class DatabaseUtil {
 		db.close();
 		return latlng;
 	}
+	
+	// 插入定位经纬度
+	public boolean AddLatLng(String lat,String lng){
+		SQLiteDatabase db = helper.getReadableDatabase();
+		String sql = "insert into "+MyHelper.LATLNG_NAME+" (lat,lng) values ('"+lat+"','"+lng+"')";
+		try {
+			db.execSQL(sql);
+			return true;
+		} catch (SQLException e) {
+			Log.e("err", "insert failed");
+			return false;
+		} finally {
+			db.close();
+		}
+	}
+	// 更新定位经纬度
+	public boolean UpdateLatLng(String lat,String lng){
+		SQLiteDatabase db = helper.getWritableDatabase();
+		String sql = "update " + MyHelper.LATLNG_NAME
+				+ " set lat = '"+lat+"',lng = '"+lng+"'";
+		db.execSQL(sql);
+		return true;
+	}
+	// 查询定位经纬度数据数目
+	public int SelectLatLng(){
+		SQLiteDatabase db = helper.getReadableDatabase();
+		String sql = "select * from "+MyHelper.LATLNG_NAME;
+		Cursor cursor = db.rawQuery(sql, null);
+		int num = 0;
+		if (cursor.moveToNext()) {
+			num = cursor.getCount();
+		}
+		db.close();
+		return num;
+	}
+	
+	@SuppressWarnings("null")
+	public MyLatLng QueryLatLng(){
+		SQLiteDatabase db = helper.getReadableDatabase();
+		MyLatLng myLatLng = new MyLatLng();
+		String sql = "select * from "+MyHelper.LATLNG_NAME;
+		Cursor cursor = db.rawQuery(sql, null);
+		while(cursor.moveToNext()){
+			myLatLng.setLat(cursor.getString(cursor.getColumnIndex("lat")));
+			myLatLng.setLng(cursor.getString(cursor.getColumnIndex("lng")));
+		}
+		return myLatLng;
+	}
 }

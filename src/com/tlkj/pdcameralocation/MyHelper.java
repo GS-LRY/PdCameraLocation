@@ -13,6 +13,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class MyHelper extends SQLiteOpenHelper {
 	private static String DB_NAME = "LatLngLocation.db";// 数据库名称
 	public static String TABLE_NAME = "pdwt";// 经纬度表名
+	public static String LATLNG_NAME = "location";// 定位经纬度表
 
 	private Context mContext;
 	
@@ -29,6 +30,9 @@ public class MyHelper extends SQLiteOpenHelper {
 				+ "id INTEGER PRIMARY KEY," + "authId TEXT,platformIp TEXT,deviceAccessId TEXT,ballMachineMainIp TEXT,subnetMask TEXT,gateWay TEXT,entryNumber TEXT,publicLocus TEXT,installLocation TEXT,lat TEXT,lng TEXT,accessWay TEXT,note TEXT,package TEXT"
 				+ ");";
 		db.execSQL(sql);
+		
+		db.execSQL("CREATE TABLE IF NOT EXISTS "+LATLNG_NAME+ " ( " 
+				+"lat TEXT,lng TEXT);");
 	}
 
 	@Override

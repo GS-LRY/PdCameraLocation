@@ -3,6 +3,7 @@ package com.tlkj.pdcameralocation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -26,9 +27,12 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Point;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -48,7 +52,8 @@ import android.widget.Toast;
  * Created by LuRuyi on 2017/8/23
  */
 public class MainActivity extends Activity implements OnClickListener,
-		OnMarkerClickListener, OnMyLocationChangeListener ,OnInfoWindowClickListener{
+		OnMarkerClickListener, OnMyLocationChangeListener,
+		OnInfoWindowClickListener {
 
 	private MarkerOptions markerOption;
 	private AMap aMap;
@@ -59,7 +64,7 @@ public class MainActivity extends Activity implements OnClickListener,
 
 	private ArrayList<LocalLatLng> locallatlngs = new ArrayList<LocalLatLng>();// 数据库中取出保存的坐标
 	private ArrayList<LatLng> latlngs = new ArrayList<LatLng>();// 转换成在地图上显示的坐标
-	
+
 	private LocalLatLng intentlatlng;// 点击marker的信息
 
 	private UiSettings mUiSettings;// 地图上显示的各类图标设置
@@ -69,12 +74,21 @@ public class MainActivity extends Activity implements OnClickListener,
 	private EditText mSearchText;
 
 	private ImageButton imgbtn_more;// 更多设置界面
-	
+
 	public final static String LatLng_KEY = "com.tlkj.pdcameralocation.LocalLatLng";
-	
+
 	// 定位
 	private AMapLocationClient mLocationClient = null;
 	private AMapLocationClientOption locationClientOption = null;
+
+	private int CountLatLng = 0;// 定位次数
+
+	// 手机自带GPS+网络定位
+	private LocationManager mLocationManager;
+	private String provider;
+	private double locationLatitude;
+	private double locationLongitude;
+	private String locationAddress;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -86,9 +100,9 @@ public class MainActivity extends Activity implements OnClickListener,
 		mapView.onCreate(savedInstanceState);
 		searchButton = (TextView) findViewById(R.id.btn_search);
 		searchButton.setOnClickListener(this);
-		imgbtn_more = (ImageButton)findViewById(R.id.imgbtn_more);
+		imgbtn_more = (ImageButton) findViewById(R.id.imgbtn_more);
 		imgbtn_more.setOnClickListener(this);
-		
+
 		init();
 	}
 
@@ -96,43 +110,109 @@ public class MainActivity extends Activity implements OnClickListener,
 	 * 初始化AMap对象
 	 */
 	private void init() {
+		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);// 获取Android自带定位服务
+		// 获取当前可用的位置服务器
+		List<String> list = mLocationManager.getProviders(true);
+		if (list.contains(LocationManager.GPS_PROVIDER)) {
+			// 是否为GPS位置控制器
+			provider = LocationManager.GPS_PROVIDER;
+		} else if (list.contains(LocationManager.NETWORK_PROVIDER)) {
+			// 是否为网络位置控制器
+			provider = LocationManager.NETWORK_PROVIDER;
+		} else {
+			Toast.makeText(this, "请检查网络或GPS是否打开", Toast.LENGTH_LONG).show();
+			return;
+		}
+		Location location = mLocationManager.getLastKnownLocation(provider);
+		if (location != null) {
+			// 获取当前位置
+			locationLatitude = location.getLatitude();
+			locationLongitude = location.getLongitude();
+		}
+
+		mLocationManager.requestLocationUpdates(provider, 2000, 2,
+				mlocationListener);
 		locallatlngs = mDButil.queryAll_LatLngInformation();// 获取数据库中所有坐标数据
-		Log.v(TAG, "数据库中有多少数据"+locallatlngs.size());
+		Log.v(TAG, "数据库中有多少数据" + locallatlngs.size());
 		if (locallatlngs.size() == 0) {
 			Message msg = new Message();
 			msg.what = 0;
 			mHandler.sendMessage(msg);
-		}else {
-			
+		} else {
+
 		}
-		
-		if(latlngs.size() == 0){
+
+		if (latlngs.size() == 0) {
 			Message msg = new Message();
 			msg.what = 1;
 			mHandler.sendMessage(msg);
 		}
 	}
+
+	LocationListener mlocationListener = new LocationListener() {
+
+		@Override
+		public void onStatusChanged(String provider, int status, Bundle extras) {
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onProviderEnabled(String provider) {
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onProviderDisabled(String provider) {
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public void onLocationChanged(Location location) {
+			// TODO Auto-generated method stub
+			
+			
+			int num = mDButil.SelectLatLng();
+			if (num == 0) {
+				mDButil.AddLatLng(
+						String.valueOf(location.getLatitude()),
+						String.valueOf(location.getLongitude()));
+			} else {
+				mDButil.UpdateLatLng(
+						String.valueOf(location.getLatitude()),
+						String.valueOf(location.getLongitude()));
+			}
+			Log.v(TAG, "生成了一个定位///lat:" + location.getLatitude()
+					+ "///lng:" + location.getLongitude());
+		}
+	};
+
 	/**
 	 * 默认的定位参数
+	 * 
 	 * @since 2.8.0
 	 * @author hongming.wang
-	 *
+	 * 
 	 */
-	private AMapLocationClientOption getDefaultOption(){
+	private AMapLocationClientOption getDefaultOption() {
 		AMapLocationClientOption mOption = new AMapLocationClientOption();
-		mOption.setLocationMode(AMapLocationMode.Hight_Accuracy);//可选，设置定位模式，可选的模式有高精度、仅设备、仅网络。默认为高精度模式
-		mOption.setGpsFirst(false);//可选，设置是否gps优先，只在高精度模式下有效。默认关闭
-		mOption.setHttpTimeOut(30000);//可选，设置网络请求超时时间。默认为30秒。在仅设备模式下无效
-		mOption.setInterval(2000);//可选，设置定位间隔。默认为2秒
-		mOption.setNeedAddress(true);//可选，设置是否返回逆地理地址信息。默认是true
-		mOption.setOnceLocation(false);//可选，设置是否单次定位。默认是false
-		mOption.setOnceLocationLatest(true);//可选，设置是否等待wifi刷新，默认为false.如果设置为true,会自动变为单次定位，持续定位时不要使用
-		AMapLocationClientOption.setLocationProtocol(AMapLocationProtocol.HTTP);//可选， 设置网络请求的协议。可选HTTP或者HTTPS。默认为HTTP
-		mOption.setSensorEnable(false);//可选，设置是否使用传感器。默认是false
-		mOption.setWifiScan(true); //可选，设置是否开启wifi扫描。默认为true，如果设置为false会同时停止主动刷新，停止以后完全依赖于系统刷新，定位位置可能存在误差
-		mOption.setLocationCacheEnable(true); //可选，设置是否使用缓存定位，默认为true
+		mOption.setLocationMode(AMapLocationMode.Hight_Accuracy);// 可选，设置定位模式，可选的模式有高精度、仅设备、仅网络。默认为高精度模式
+		mOption.setGpsFirst(false);// 可选，设置是否gps优先，只在高精度模式下有效。默认关闭
+		mOption.setHttpTimeOut(30000);// 可选，设置网络请求超时时间。默认为30秒。在仅设备模式下无效
+		mOption.setInterval(2000);// 可选，设置定位间隔。默认为2秒
+		mOption.setNeedAddress(true);// 可选，设置是否返回逆地理地址信息。默认是true
+		mOption.setOnceLocation(false);// 可选，设置是否单次定位。默认是false
+		mOption.setOnceLocationLatest(true);// 可选，设置是否等待wifi刷新，默认为false.如果设置为true,会自动变为单次定位，持续定位时不要使用
+		AMapLocationClientOption.setLocationProtocol(AMapLocationProtocol.HTTP);// 可选，
+																				// 设置网络请求的协议。可选HTTP或者HTTPS。默认为HTTP
+		mOption.setSensorEnable(false);// 可选，设置是否使用传感器。默认是false
+		mOption.setWifiScan(true); // 可选，设置是否开启wifi扫描。默认为true，如果设置为false会同时停止主动刷新，停止以后完全依赖于系统刷新，定位位置可能存在误差
+		mOption.setLocationCacheEnable(true); // 可选，设置是否使用缓存定位，默认为true
 		return mOption;
 	}
+
 	private Handler mHandler = new Handler() {
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
@@ -149,32 +229,56 @@ public class MainActivity extends Activity implements OnClickListener,
 				locallatlngs = mDButil.queryAll_LatLngInformation();
 				LocalLatLng lll = new LocalLatLng();
 				// 坐标转换
-				CoordinateConverter converter = new CoordinateConverter(getApplicationContext());
+				CoordinateConverter converter = new CoordinateConverter(
+						getApplicationContext());
 				converter.from(CoordType.GPS);
 				for (int i = 0; i < locallatlngs.size(); i++) {
 					lll = locallatlngs.get(i);
-					LatLng ll = converter.coord(new LatLng(Double.valueOf(lll.getLat()), Double
+					LatLng ll = converter.coord(
+							new LatLng(Double.valueOf(lll.getLat()), Double
 									.valueOf(lll.getLng()))).convert();
 					latlngs.add(ll);
 				}
 				if (aMap == null) {
 					aMap = mapView.getMap();
-					
+
 					// 设置比例尺
 					mUiSettings = aMap.getUiSettings();
 					mUiSettings.setScaleControlsEnabled(true);
-					
+
 					// 改变默认显示区域
-					aMap.moveCamera(CameraUpdateFactory.newLatLng(Constants.SHANGHAI));
-					
+					aMap.moveCamera(CameraUpdateFactory
+							.newLatLng(Constants.SHANGHAI));
+
 					for (int j = 0; j < latlngs.size(); j++) {
-						setUpMap(latlngs.get(j),locallatlngs.get(j));
+						setUpMap(latlngs.get(j), locallatlngs.get(j));
 					}
 				}
-				
+
 				Log.v(TAG, "再来一次");
 				initLocation();
-				mLocationClient.startLocation();
+				// mLocationClient.startLocation();
+				markerOption = new MarkerOptions()
+						.icon(BitmapDescriptorFactory
+								.fromResource(R.drawable.location))
+						.position(
+								converter.coord(
+										new LatLng(locationLatitude,
+												locationLongitude)).convert())
+						.title("自己的定位").draggable(true);
+				marker = aMap.addMarker(markerOption);
+				int num = mDButil.SelectLatLng();
+				if (num == 0) {
+					mDButil.AddLatLng(
+							String.valueOf(locationLatitude),
+							String.valueOf(locationLongitude));
+				} else {
+					mDButil.UpdateLatLng(
+							String.valueOf(locationLatitude),
+							String.valueOf(locationLongitude));
+				}
+				Log.v(TAG, "生成了一个定位///lat:" + locationLatitude
+						+ "///lng:" + locationLongitude);
 				setup();
 				break;
 			default:
@@ -182,24 +286,26 @@ public class MainActivity extends Activity implements OnClickListener,
 			}
 		}
 	};
+
 	/**
 	 * 初始化定位
 	 * 
 	 * @since 2.8.0
 	 * @author hongming.wang
-	 *
+	 * 
 	 */
-	private void initLocation(){
-		//初始化client
+	private void initLocation() {
+		// 初始化client
 		mLocationClient = new AMapLocationClient(this.getApplicationContext());
 		locationClientOption = getDefaultOption();
-		//设置定位参数
+		// 设置定位参数
 		mLocationClient.setLocationOption(locationClientOption);
 		// 设置定位监听
 		mLocationClient.setLocationListener(locationListener);
 	}
+
 	private void setup() {
-		mSearchText = (EditText)findViewById(R.id.input_edittext);
+		mSearchText = (EditText) findViewById(R.id.input_edittext);
 		mSearchText.setHint("请输入搜索编号");
 		detailMarker = aMap.addMarker(new MarkerOptions());
 	}
@@ -207,8 +313,9 @@ public class MainActivity extends Activity implements OnClickListener,
 	private void setUpMap(LatLng latLng, LocalLatLng localLatLng) {
 		aMap.setOnMarkerClickListener(this);
 		aMap.setOnInfoWindowClickListener(this);
-		addMarkersToMap(latLng,localLatLng);
+		addMarkersToMap(latLng, localLatLng);
 	}
+
 	private void addMarkersToMap(LatLng latLng, LocalLatLng localLatLng) {
 		int icon_id = R.drawable.icon_loca1;
 		int pac = Integer.valueOf(localLatLng.getPac());
@@ -228,12 +335,15 @@ public class MainActivity extends Activity implements OnClickListener,
 			icon_id = R.drawable.icon_loca11;
 		}
 		markerOption = new MarkerOptions()
-		.icon(BitmapDescriptorFactory.fromResource(icon_id))
-		.position(latLng).title("编号:" + localLatLng.getEntryNumber())
-		.snippet("地址:" + localLatLng.getInstallLocation()).draggable(true);
+				.icon(BitmapDescriptorFactory.fromResource(icon_id))
+				.position(latLng).title("编号:" + localLatLng.getEntryNumber())
+				.snippet("地址:" + localLatLng.getInstallLocation())
+				.draggable(true);
 		marker = aMap.addMarker(markerOption);
 	};
+
 	Marker marker;
+
 	@Override
 	public void onMyLocationChange(Location arg0) {
 		// TODO Auto-generated method stub
@@ -244,21 +354,22 @@ public class MainActivity extends Activity implements OnClickListener,
 	public boolean onMarkerClick(Marker marker) {
 		if (aMap != null) {
 			jumpPoint(marker);
-			Log.v(TAG, "marker的ID"+marker.getId());
+			Log.v(TAG, "marker的ID" + marker.getId());
 			String markerid = marker.getId();
 			// 返回键返回重新进入，markerID继续累加，没有重新计数，暂时没有想到解决办法，用笨办法解决
 			int num = Integer.valueOf(markerid.substring(6, markerid.length()));
-			if(num>=locallatlngs.size()){
-				num = num%locallatlngs.size();
+			if (num >= locallatlngs.size()) {
+				num = num % locallatlngs.size();
 			}
-			intentlatlng = locallatlngs.get(num-1);
-			Log.v(TAG, "marker的ID"+locallatlngs.get(num).getId());
+			intentlatlng = locallatlngs.get(num - 1);
+			Log.v(TAG, "marker的ID" + locallatlngs.get(num).getId());
 			marker.showInfoWindow();
 		}
-//		Toast.makeText(MainActivity.this, "您点击了Marker",
-//				Toast.LENGTH_LONG).show();
+		// Toast.makeText(MainActivity.this, "您点击了Marker",
+		// Toast.LENGTH_LONG).show();
 		return true;
 	}
+
 	/**
 	 * marker点击时跳动一下
 	 */
@@ -290,6 +401,7 @@ public class MainActivity extends Activity implements OnClickListener,
 			}
 		});
 	}
+
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
@@ -297,66 +409,86 @@ public class MainActivity extends Activity implements OnClickListener,
 			doSearchQuery();
 			break;
 		case R.id.imgbtn_more:
-			Intent intent = new Intent(this,MoreActivity.class);
+			Intent intent = new Intent(this, MoreActivity.class);
 			startActivity(intent);
 			break;
 		default:
 			break;
 		}
 	}
-	
+
 	private void doSearchQuery() {
 		ID = mSearchText.getText().toString().trim();
 		LocalLatLng locallatlng = null;
-		if(ID==""||ID.equals(null)||ID==null||ID.equals("")){
-			Toast.makeText(MainActivity.this, "请填写搜索编号", Toast.LENGTH_LONG).show();
-		}else{
+		if (ID == "" || ID.equals(null) || ID == null || ID.equals("")) {
+			Toast.makeText(MainActivity.this, "请填写搜索编号", Toast.LENGTH_LONG)
+					.show();
+		} else {
 			locallatlng = mDButil.queryLatLngByEntryNumber(ID);
-			if(aMap!=null&&locallatlng!=null){
+			if (aMap != null && locallatlng != null) {
 				aMap.clear();
-				addMarkersToMap(latlngs.get(locallatlng.getId()-1), locallatlng);
+				addMarkersToMap(latlngs.get(locallatlng.getId() - 1),
+						locallatlng);
 				jumpPoint(marker);
 				marker.showInfoWindow();
 				mLocationClient.startLocation();
-				
+
 				// 设置比例尺
 				mUiSettings = aMap.getUiSettings();
 				mUiSettings.setScaleControlsEnabled(true);
-				
+
 				// 改变默认显示区域
-				aMap.moveCamera(CameraUpdateFactory
-						.newLatLng(latlngs.get(locallatlng.getId()-1)));
-			}else{
-				Toast.makeText(MainActivity.this, "该编号设备不存在",
-						Toast.LENGTH_LONG).show();
-				//infoText.setVisibility(View.INVISIBLE);
+				aMap.moveCamera(CameraUpdateFactory.newLatLng(latlngs
+						.get(locallatlng.getId() - 1)));
+			} else {
+				Toast.makeText(MainActivity.this, "该编号设备不存在", Toast.LENGTH_LONG)
+						.show();
+				// infoText.setVisibility(View.INVISIBLE);
 			}
 		}
 	}
-	
+
 	/**
 	 * 定位监听
 	 */
 	AMapLocationListener locationListener = new AMapLocationListener() {
-		
+
 		@Override
 		public void onLocationChanged(AMapLocation location) {
-			if(null != location){
+			if (null != location) {
 				StringBuffer sb = new StringBuffer();
-				//errCode等于0代表定位成功，其他的为定位失败，具体的可以参照官网定位错误码说明
-				if(location.getErrorCode() == 0){
+				// errCode等于0代表定位成功，其他的为定位失败，具体的可以参照官网定位错误码说明
+				if (location.getErrorCode() == 0) {
+
 					markerOption = new MarkerOptions()
-					.icon(BitmapDescriptorFactory.fromResource(R.drawable.location))
-					.position(new LatLng(Double.valueOf(location.getLatitude()), Double
-							.valueOf(location.getLongitude()))).title("自己的定位")
-					.snippet("地址:" + location.getAddress()).draggable(true);
+							.icon(BitmapDescriptorFactory
+									.fromResource(R.drawable.location))
+							.position(
+									new LatLng(Double.valueOf(location
+											.getLatitude()), Double
+											.valueOf(location.getLongitude())))
+							.title("自己的定位")
+							.snippet("地址:" + location.getAddress())
+							.draggable(true);
 					marker = aMap.addMarker(markerOption);
-					Log.v(TAG, "生成了一个定位");
-					}else{
-						
+
+					int num = mDButil.SelectLatLng();
+					if (num == 0) {
+						mDButil.AddLatLng(
+								String.valueOf(location.getLatitude()),
+								String.valueOf(location.getLongitude()));
+					} else {
+						mDButil.UpdateLatLng(
+								String.valueOf(location.getLatitude()),
+								String.valueOf(location.getLongitude()));
 					}
-			}else{
-				
+					Log.v(TAG, "生成了一个定位///lat:" + location.getLatitude()
+							+ "///lng:" + location.getLongitude());
+				} else {
+
+				}
+			} else {
+
 			}
 		}
 	};
@@ -367,35 +499,39 @@ public class MainActivity extends Activity implements OnClickListener,
 		mapView.onResume();
 		Log.v(TAG, "onResume");
 	}
-	
+
 	@Override
 	protected void onPause() {
 		super.onPause();
 		mapView.onPause();
 		Log.v(TAG, "onPause");
 	}
-	
+
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 		mapView.onSaveInstanceState(outState);
 		Log.v(TAG, "onSaveInstanceState");
 	}
-	
+
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
 		mapView.onDestroy();
 		Log.v(TAG, "onDestroy");
+		if (mLocationManager != null) {
+			mLocationManager.removeUpdates(mlocationListener);
+		}
 	}
 
 	@Override
 	public void onInfoWindowClick(Marker marker) {
-		Intent intent = new Intent(this,CameraInfoActivity.class);
-		Log.v(TAG, "跳转marker的ID"+intentlatlng.getId());
+		Intent intent = new Intent(this, CameraInfoActivity.class);
+		Log.v(TAG, "跳转marker的ID" + intentlatlng.getId());
 		Bundle mBundle = new Bundle();
 		mBundle.putSerializable(LatLng_KEY, intentlatlng);
 		intent.putExtras(mBundle);
 		startActivity(intent);
 	}
+
 }

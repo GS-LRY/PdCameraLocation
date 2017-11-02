@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="app_name">浦东违停定位</string>
+
+    <string name="app_name">图丽浦东违停</string>
     <string name="animate">Animate</string>
     <string name="basic_map">显示地图</string>
     <string name="basic_description">介绍如何创建一个基本地图</string>
@@ -254,5 +255,22 @@
     <string name="style_custom_off">关闭个性化地图</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="hello_world">Hello world!</string>
+
+    <!-- 拍照界面 -->
+    <string name="tv_photograph">拍照</string>
+    <string name="tv_photos">相册</string>
+    <string name="tv_menu_title">点击拍照</string>
+    <string name="tv_menu_msg">点击拍照</string>
+    <string name="btn_upload">上传</string>
+    <string name="btn_delete">删除</string>
+    <string name="tv_file_op_delete">删除</string>
+    <string name="tv_file_op_download">下载</string>
+    <string name="tv_file_op_share">分享</string>
+    <string name="tv_file_op_more">更多</string>
+    <string name="tv_file_name">照片1</string>
+    <string name="tv_file_msg">188.3M  修改时间:2012–11–23</string>
+    <string name="tv_logo_title">上海图丽信息技术有限公司</string>
+    <string name="tv_upload">点击上传</string>
+    <string name="tv_currentlocation">正在搜索最近点位，计算图片名字。。。</string>
 
 </resources>

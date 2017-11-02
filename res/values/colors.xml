@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <color name="grey"> #ebebeb</color>
+    <color name="grey"> #ff5b5a5a</color>
     <color name="black"> #000000</color>
     <color name="darkgrey"> #C0C0C0</color>
     <color name="white"> #FFFFFF</color>
@@ -9,9 +9,11 @@
     <color name="f850_default_blue">#0079ff</color>
 
     <drawable name="transparent">#00000000</drawable>
-    <color name="transparent">#00000000</color>
-    
 
+    <color name="transparency">#00000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="shadow">#1e000000</color>
+    <color name="deep_gray">#ff3b3b3b</color>
     <color name="header_toast_bg">#ccebfc</color>
     <color name="header_toast">#024ca1</color>
     <color name="header_toast_line">#abdaf4</color>
@@ -29,5 +31,5 @@
     <color name="translucent">#66000000</color>
     <color name="color666">#661B85FF</color>
     <color name="color_1B85FF">#1B85FF</color>
-
+	<color name="light_gray">#ffebebeb</color>
 </resources>
